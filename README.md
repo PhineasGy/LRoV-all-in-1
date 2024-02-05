@@ -2,4 +2,4 @@
 
 Current Version: V1.36
 
-project: cross-prism (no merge to main)
+project: cross-prism 2 region mode (no merge to main)

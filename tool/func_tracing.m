@@ -537,12 +537,12 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                         RM = cp(1).RM;
                         TM = cp(1).TM;
                         L2PBA = cp(1).L2PBA;
-                        rotCP_PRA = cp(cc).rotCP_PRA;
+                        rotCP_PRA = cp(1).rotCP_PRA;
                     elseif query_point(2) >= 0    % 套用右區
                         RM = cp(2).RM;
                         TM = cp(2).TM;
                         L2PBA = cp(2).L2PBA;
-                        rotCP_PRA = cp(cc).rotCP_PRA;
+                        rotCP_PRA = cp(2).rotCP_PRA;
                     end
                     query_point_cp = RM * query_point + TM;
                     cp_L = query_point_cp(2); % Y* 座標 %% 代處理
