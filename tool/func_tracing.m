@@ -299,17 +299,27 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
     cross_gap_high = 0.15;
     cross_n_high = 1;
     
-    %% 兩區 Mode Input %%   
-    % 輸入: 外端點 PBA1, angle step, PRA1, pitch
-    CP_PBA_left = 10;
-    CP_angleStep_left = 0.05;  % degree
-    CP_pitch_left = 0.1;
-    CP_PRA_left = 5;
+    %% 四區 Mode Input %%   
+    % 輸入: 外端點 PBA, angle step, PRA, pitch
+    CP_PBA_leftup = 10;
+    CP_angleStep_leftup = 0.05;  % degree
+    CP_pitch_leftup = 0.1;
+    CP_PRA_leftup = -5;
 
-    CP_PBA_right = -15;
-    CP_angleStep_right = 0.05;  % degree
-    CP_pitch_right = 0.1;
-    CP_PRA_right = 5;
+    CP_PBA_leftdown = 10;
+    CP_angleStep_leftdown = 0.05;  % degree
+    CP_pitch_leftdown = 0.1;
+    CP_PRA_leftdown = -5;
+    
+    CP_PBA_rightup = -15;
+    CP_angleStep_rightup = 0.05;  % degree
+    CP_pitch_rightup = 0.1;
+    CP_PRA_rightup = -5;
+
+    CP_PBA_rightdown = -15;
+    CP_angleStep_rightdown = 0.05;  % degree
+    CP_pitch_rightdown = 0.1;
+    CP_PRA_rightdown = -5;
     
     %% cp 輸入結束 %%
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -321,28 +331,43 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
         cross_gap_high = 0;
     end
     % note: input limit --> 左側 PBA > 0, 右側 PBA < 0
-    cp = struct('which',{"left","right"});  % 建立 1x2 struct
-    for cc = [1,2]  % 左區 右區
+    cp = struct('which',{"leftup","leftdown","rightup","rightdown"});  % 建立 1x4 struct
+    for cc = [1,2,3,4]  % 左上 左下 右上 右下
         %% 帶入各自的值
         switch cc
-            case 1  % 左
-                CP_PBA = CP_PBA_left;
-                CP_PRA = CP_PRA_left;
-                CP_angleStep = CP_angleStep_left;
-                CP_pitch = CP_pitch_left;
+            case 1  % 左上
+                CP_PBA = CP_PBA_leftup;
+                CP_PRA = CP_PRA_leftup;
+                CP_angleStep = CP_angleStep_leftup;
+                CP_pitch = CP_pitch_leftup;
                 CP_ind = 1;
-                CP_now = "左區";
-            case 2  % 右
-                CP_PBA = CP_PBA_right;
-                CP_PRA = CP_PRA_right;
-                CP_angleStep = CP_angleStep_right;
-                CP_pitch = CP_pitch_right;
+                CP_now = "左上";
+            case 2  % 左下
+                CP_PBA = CP_PBA_leftdown;
+                CP_PRA = CP_PRA_leftdown;
+                CP_angleStep = CP_angleStep_leftdown;
+                CP_pitch = CP_pitch_leftdown;
+                CP_ind = 1;
+                CP_now = "左下";
+            case 3  % 右上
+                CP_PBA = CP_PBA_rightup;
+                CP_PRA = CP_PRA_rightup;
+                CP_angleStep = CP_angleStep_rightup;
+                CP_pitch = CP_pitch_rightup;
                 CP_ind = -1;
-                CP_now = "右區";
+                CP_now = "右上";
+            case 4  % 右下
+                CP_PBA = CP_PBA_rightdown;
+                CP_PRA = CP_PRA_rightdown;
+                CP_angleStep = CP_angleStep_rightdown;
+                CP_pitch = CP_pitch_rightdown;
+                CP_ind = -1;
+                CP_now = "右下";
+
         end
         %% update hor length (for 左右兩區: hor --> 0.5*hor)
         length_hor = 0.5 * crossHorLength;
-        length_ver = 1 * crossVerLength;
+        length_ver = 0.5 * crossVerLength;
 
         %% PBA list
         % 考慮轉動後長度
@@ -355,7 +380,6 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
         if length(cp_PBA_nonZero) > cp_point_num
             error(strcat("[error]: ", CP_now ," prism 數量不足 (必須要有 PBA 0 的地方) (system stopped) "))
         end
-        % note: 左右側因為 PRA 不同，可能在 Y 軸會有斷層 (需要考慮?) (TDL)
         cp_PBA_list(1:length(cp_PBA_nonZero)) = cp_PBA_nonZero;
         cp_PBA_list(length(cp_PBA_nonZero)+1:end) = 0;
         cp_L_list = linspace(0,CP_ind * real_hor,cp_point_num);
@@ -367,7 +391,13 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
         %% transform matrix
         RM = [cosd(CP_PRA)   sind(CP_PRA);
               -sind(CP_PRA)  cosd(CP_PRA)];
-        translation_factor = real_hor - length_ver * sind(CP_PRA)/2;    % !
+        % 不同區不同PRA有不同 translator factor
+        if (cc==1 && CP_PRA < 0) || (cc==2 && CP_PRA >= 0) ||...
+                (cc==3 && CP_PRA >= 0) || (cc==4 && CP_PRA < 0)  
+            translation_factor = real_hor;
+        else
+            translation_factor = real_hor - abs(length_ver * sind(CP_PRA));
+        end
         TM = [0;CP_ind * translation_factor];
 
         %% 記錄各區 L to PBA function
@@ -376,15 +406,21 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
         cp(cc).TM = TM;
         cp(cc).rotCP_PRA = rotz(CP_PRA);
 
-        %% For 邊界 PBA 檢查
-        QP1 = [-length_ver*0.5 ; 0];
-        PBA_check_top = getPBA_cp(cp(cc),QP1); % 中上點 PBA
-        QP2 = [+length_ver*0.5 ; 0];
-        PBA_check_bottom = getPBA_cp(cp(cc),QP2); % 中下點 PBA
-        cp(cc).PBA_up = PBA_check_top;
-        cp(cc).PBA_down = PBA_check_bottom;
+        %% 危線 PBA 檢查 (共 5 點: 上下左右中)
+        QPleft =    [0 ; -length_hor];
+        QPright =   [0 ; +length_hor];
+        QPup =      [-length_ver ; 0];
+        QPdown =    [+length_ver ; 0];
+        QPorigin =  [0 ; 0];
+
+        cp_PBAcheck = {}; % 初始空集合
+        for whichQP = {QPleft, QPright, QPup, QPdown, QPorigin}
+            QP = cell2mat(whichQP);
+            PBA_check = getPBA_cp(cp(cc),QP);
+            cp_PBAcheck{end+1} = PBA_check; %#ok<AGROW>
+        end
+        [cp(cc).PBA_left,cp(cc).PBA_right,cp(cc).PBA_up,cp(cc).PBA_down, cp(cc).PBA_origin] = cp_PBAcheck{:};
     end
-    %% cp_邊界檢查 (TDL)
 
     %% 決定輸出要為 data 或是 segM00, 其他處理
     while 1
@@ -532,21 +568,18 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                 cp_normal = [0;0;-1];
                 while CPMode == 1
                     query_point = lensCenter_xy;
-
                     %% 決定要套到哪一組 CP
-                    if query_point(2) < 0     % 套用左區
-                        RM = cp(1).RM;
-                        TM = cp(1).TM;
-                        L2PBA = cp(1).L2PBA;
-                        rotCP_PRA = cp(cc).rotCP_PRA;
-                    elseif query_point(2) >= 0    % 套用右區
-                        RM = cp(2).RM;
-                        TM = cp(2).TM;
-                        L2PBA = cp(2).L2PBA;
-                        rotCP_PRA = cp(cc).rotCP_PRA;
+                    if query_point(1) < 0 && query_point(2) < 0;         ctemp = 1;      % 套用左上
+                    elseif query_point(1) >= 0 && query_point(2) < 0;    ctemp = 2;      % 套用左下
+                    elseif query_point(1) < 0 && query_point(2) >= 0;    ctemp = 3;      % 套用右上
+                    elseif query_point(1) >= 0 && query_point(2) >= 0;   ctemp = 4;      % 套用右下
                     end
+                    RM = cp(ctemp).RM;
+                    TM = cp(ctemp).TM;
+                    L2PBA = cp(ctemp).L2PBA;
+                    rotCP_PRA = cp(ctemp).rotCP_PRA;
                     query_point_cp = RM * query_point + TM;
-                    cp_L = query_point_cp(2); % Y* 座標 %% 代處理
+                    cp_L = query_point_cp(2); % Y* 座標
                     cp_PBA = L2PBA(cp_L);
                     cp_normal = [0;-sind(cp_PBA);-cosd(cp_PBA)]; % 出 CP Prism 斜面法向量 
                     cp_normal = rotCP_PRA * cp_normal; % 旋轉法向量
