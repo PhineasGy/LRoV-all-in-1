@@ -8,6 +8,7 @@ function data = func_tracing(whichCode,data,varargin)
     %       EX: data = func_tracing("II",data,2,10)
     % loop order: eye --> lens --> segment --> AUF --> pupiledge
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % note: cp beta verison (cp 相關參數直接在 func_tracing 操作) 
     % --- processing ---
 
     %% structure assignment
@@ -283,6 +284,107 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
     if whichCode == "II"
         TIRHappen = 0;
     end
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% CP 使用者輸入
+    % version: PBA = 0 位置仍然會有 cp 虛擬面厚度 (cp_struct)
+    CPMode = 1;                     % if 0: cp 厚度 == 0 normal [0;0;1]
+    crossHorLength = 165.24;        % !: cp 內切矩形 (平行面板長寬) 水平長度
+    crossVerLength = 293.76;        % !: cp 內切矩形 (平行面板長寬) 垂直長度
+    crossSub = 0.1;
+    crossStruct = 0.066;            % 虛擬面: crossStruct/2 位置
+    cross_n = 1.517;
+    cross_gap_low = 0.15;           % cross prism 與往下一層之間的間格
+    cross_n_low = 1;                % cross prism 與往下一層之間的材料折射率
+    cross_gap_high = 0.15;
+    cross_n_high = 1;
+    
+    %% 兩區 Mode Input %%   
+    % 輸入: 外端點 PBA1, angle step, PRA1, pitch
+    CP_PBA_left = 10;
+    CP_angleStep_left = 0.05;  % degree
+    CP_pitch_left = 0.1;
+    CP_PRA_left = 5;
+
+    CP_PBA_right = -15;
+    CP_angleStep_right = 0.05;  % degree
+    CP_pitch_right = 0.1;
+    CP_PRA_right = 5;
+    
+    %% cp 輸入結束 %%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %% no CP handle
+    if CPMode == 0
+        crossSub = 0;
+        crossStruct = 0;
+        cross_gap_low = 0;          
+        cross_gap_high = 0;
+    end
+    % note: input limit --> 左側 PBA > 0, 右側 PBA < 0
+    cp = struct('which',{"left","right"});  % 建立 1x2 struct
+    for cc = [1,2]  % 左區 右區
+        %% 帶入各自的值
+        switch cc
+            case 1  % 左
+                CP_PBA = CP_PBA_left;
+                CP_PRA = CP_PRA_left;
+                CP_angleStep = CP_angleStep_left;
+                CP_pitch = CP_pitch_left;
+                CP_ind = 1;
+                CP_now = "左區";
+            case 2  % 右
+                CP_PBA = CP_PBA_right;
+                CP_PRA = CP_PRA_right;
+                CP_angleStep = CP_angleStep_right;
+                CP_pitch = CP_pitch_right;
+                CP_ind = -1;
+                CP_now = "右區";
+        end
+        %% update hor length (for 左右兩區: hor --> 0.5*hor)
+        length_hor = 0.5 * crossHorLength;
+        length_ver = 1 * crossVerLength;
+
+        %% PBA list
+        % 考慮轉動後長度
+        real_hor = abs(length_hor * cosd(CP_PRA)) + abs(length_ver * sind(CP_PRA));
+        real_ver = abs(length_hor * sind(CP_PRA)) + abs(length_ver * cosd(CP_PRA));
+        cp_point_num = round(real_hor/CP_pitch)+1;
+        cp_PBA_list = nan(1,cp_point_num);      % CP 尺數 (由長度決定)
+        % 考量 PBA List (補零數量)
+        cp_PBA_nonZero = CP_PBA : -CP_angleStep * CP_ind : 0;
+        if length(cp_PBA_nonZero) > cp_point_num
+            error(strcat("[error]: ", CP_now ," prism 數量不足 (必須要有 PBA 0 的地方) (system stopped) "))
+        end
+        % note: 左右側因為 PRA 不同，可能在 Y 軸會有斷層 (需要考慮?) (TDL)
+        cp_PBA_list(1:length(cp_PBA_nonZero)) = cp_PBA_nonZero;
+        cp_PBA_list(length(cp_PBA_nonZero)+1:end) = 0;
+        cp_L_list = linspace(0,CP_ind * real_hor,cp_point_num);
+        % cp_L 轉為遞增
+        [cp_L_list_sort, cp_ind_temp] = sort(cp_L_list);
+        cp_PBA_list_sort = cp_PBA_list(cp_ind_temp);
+        grid_function = griddedInterpolant(cp_L_list_sort,cp_PBA_list_sort);
+        
+        %% transform matrix
+        RM = [cosd(CP_PRA)   sind(CP_PRA);
+              -sind(CP_PRA)  cosd(CP_PRA)];
+        translation_factor = real_hor - length_ver * sind(CP_PRA)/2;    % !
+        TM = [0;CP_ind * translation_factor];
+
+        %% 記錄各區 L to PBA function
+        cp(cc).L2PBA = grid_function;
+        cp(cc).RM = RM;
+        cp(cc).TM = TM;
+        cp(cc).rotCP_PRA = rotz(CP_PRA);
+
+        %% For 邊界 PBA 檢查
+        QP1 = [-length_ver*0.5 ; 0];
+        PBA_check_top = getPBA_cp(cp(cc),QP1); % 中上點 PBA
+        QP2 = [+length_ver*0.5 ; 0];
+        PBA_check_bottom = getPBA_cp(cp(cc),QP2); % 中下點 PBA
+        cp(cc).PBA_up = PBA_check_top;
+        cp(cc).PBA_down = PBA_check_bottom;
+    end
+    %% cp_邊界檢查 (TDL)
+
     %% 決定輸出要為 data 或是 segM00, 其他處理
     while 1
         segM00_now = 0;
@@ -304,8 +406,6 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
         if whichCode == "XYGrid"
             softLLTracing = 0;  % XYGrid code 沒有根數概念
         end
-
-        % unified coordinate system (zero point: panel center)
         warningTIR = 0; % 僅提示一次 (20230829)
         if whichCode == "M00Curve"
             M00MatrixPadded = nan(length(rangeY),segNum+1,3); % 左中右眼
@@ -417,7 +517,6 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                 segCount = segCount + 1;
                 %% lens center
                 lensCenter_xy = lensCenterArray(:,whichSeg);
-                
                 %% pupil center
                 pupilCenter_xy = [0;whichEye*binoDistance*0.5]; %以眼球中心為零點
                 % HVA90 270 ... 以外都要旋轉 (雙眼中心)
@@ -427,6 +526,31 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                     pupilCenter_xy=pupilCenter_rot(1:2);
                 end
                 pupilCenter_xy = pupilCenter_xy + [viewPointVer ; viewPointHor];
+                
+                %% CP PBA determination (@ lens center) (fixed if preciseCP off)
+                cp_normal = [0;0;-1];
+                while CPMode == 1
+                    query_point = lensCenter_xy;
+
+                    %% 決定要套到哪一組 CP
+                    if query_point(2) < 0     % 套用左區
+                        RM = cp(1).RM;
+                        TM = cp(1).TM;
+                        L2PBA = cp(1).L2PBA;
+                        rotCP_PRA = cp(cc).rotCP_PRA;
+                    elseif query_point(2) >= 0    % 套用右區
+                        RM = cp(2).RM;
+                        TM = cp(2).TM;
+                        L2PBA = cp(2).L2PBA;
+                        rotCP_PRA = cp(cc).rotCP_PRA;
+                    end
+                    query_point_cp = RM * query_point + TM;
+                    cp_L = query_point_cp(2); % Y* 座標 %% 代處理
+                    cp_PBA = L2PBA(cp_L);
+                    cp_normal = [0;-sind(cp_PBA);-cosd(cp_PBA)]; % 出 CP Prism 斜面法向量 
+                    cp_normal = rotCP_PRA * cp_normal; % 旋轉法向量
+                break
+                end
 
                 %% GP PBA determination (@ lens center)    
                 while 1
@@ -446,7 +570,7 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                             % 判斷 L 正負 20230808
                             % 假設 零點 (0,0) 一定在虛擬眼之上
                             % if L 和 零點 在切線同一側: L > 0
-                            % 切線方程式: E𝑦∗𝑦+𝐸𝑥∗𝑥−(𝐸𝑦^2+𝐸𝑥^2)=0
+                            % 切線方程式: E������∗������+������������∗������−(������������^2+������������^2)=0
                             centerSide = -norm(VEP_XY(1:2))^2;
                             targetSide = lensCenter_xy(1:2)'*VEP_XY(1:2) - norm(VEP_XY(1:2))^2;
                             if centerSide*targetSide < 0;Length_LensVirtualEye_1 = -Length_LensVirtualEye_1;end
@@ -460,7 +584,6 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                             end
                         end
                         PLA_desired = atand(Length_LensVirtualEye_1/QV(3));
-    %                     PBA_desired = interp1(PLA_array_fromPBA,PBA_array_forPLA,PLA_desired); 
                         PBA_desired = PLAtoPBAFunction(PLA_desired);
                     elseif prismMode == 1 && GPMode == 1 && length(PBA) > 1
                         lensCenterForGP_tf = [lensCenter_xy(2);-lensCenter_xy(1)];
@@ -530,15 +653,53 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                     end
                     lensFH_minus_H = lensFullHeight - lensHeight;
                     lensHD_minus_FH = lensHeightDefault - lensFullHeight;
-                    lengthZRay3 = lensHeight + prismLensGap + lensHD_minus_FH;  % Prism 結構半高 到 Lens Edge
                     lensThickness = lensSubstrate + lensFullHeight; % 各自 Lens 高 (不受 AUF 影響)
                     
-                    % lensHeightDefault; % EI 0 Lens 高: 通常最高，通常代表系統高度
-                    systemThickness = displayCoverThickness + OCAThickness*2 + glassThickness + lensSubstrate + lensHeightDefault +...
-                                    + prismLensGap + prismStructure/2 + prismSubstrate;       % always fixed
+                    % outdated
+%                     Z_lensEdge = displayCoverThickness + OCAThickness*2 + glassThickness + lensThickness - lensHeight;
+%                     Z_pupil = systemThickness + WDz; % WDR 從 prism substrate top 開始算起 
 
-                    Z_lensEdge = displayCoverThickness + OCAThickness*2 + glassThickness + lensThickness - lensHeight;
-                    Z_pupil = systemThickness + WDz; % WDR 從 prism substrate top 開始算起 
+                    %% CP tracing data
+                    while 1
+                        % Z distance, n
+                        % 5 段長度, 5 個材料, 過 4 個介面
+                        % Z1: eye to system top (update by wedge)
+                        Z_dis_1 = WDz - wedgeHeight;  % WDz: eye to GP top
+                        n_1 = air_n;
+                        % Z2: system top(WP top) to GP half struct (virtual plane) (update by wedge)
+                        Z_dis_2 = wedgeHeight + 0 + prismSubstrate + 0.5 * prismStructure;
+                        n_2 = prism_n;
+                        % Z3: GP half struct to CP top (fixed)
+                        Z_dis_3 = cross_gap_high; % 名子待修正
+                        n_3 = cross_n_high;
+                        % Z4: CP top to CP half structure (virtual plane) (fixed)
+                        Z_dis_4 = crossSub + 0.5 * crossStruct;
+                        n_4 = cross_n;
+                        % Z5: CP half structure to Lens edge (update by GRL)
+                        Z_dis_5 = cross_gap_low + lensHeight + lensHD_minus_FH;
+                        n_5 = cross_n_low;
+    
+                        % mu (共 4 個)
+                        mu_1to2 = n_1/n_2;  % air J WP/GP
+                        mu_2to3 = n_2/n_3;  % WP/GP J air
+                        mu_3to4 = n_3/n_4;  % air J CP
+                        mu_4to5 = n_4/n_5;  % CP J air
+    
+                        % normal (共 4 個) (方向: 朝下一個介質的方向)
+                        normal_1to2 = wedge_normal; % fixed
+                        normal_2to3 = UV_normal2;   % update by GP_PBADesired (unless preciseGP is on)
+                        normal_3to4 = [0;0;-1];     % fixed
+                        normal_4to5 = cp_normal;    % update by CP_PBADesired
+                        
+                        % 僅到 GP sub top
+                        systemThickness = displayCoverThickness + OCAThickness*2 + glassThickness + lensSubstrate + lensHeightDefault +...
+                                cross_gap_low + 0.5 * crossStruct + crossSub + cross_gap_high...
+                                + 0.5 * prismStructure + prismSubstrate;
+    
+                        Z_pos_lensEdge = displayCoverThickness + OCAThickness*2 + glassThickness + lensThickness - lensHeight;
+                        Z_pos_pupil = systemThickness + WDz; % WDR 從 prism substrate top 開始算起 
+                    break
+                    end
 
                     %% pupil edge loop
                     if whichCode == "M00Curve"
@@ -558,13 +719,13 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                             vector_beforeRot_pupil = [0;whichPupilEdge*pupilSize;0];
                         end
                         temp_rot = rotLRA * vector_beforeRot_pupil;
-                        final_PupilEdge = [pupilCenter_xy;Z_pupil] + temp_rot; % [3D]
+                        final_PupilEdge = [pupilCenter_xy;Z_pos_pupil] + temp_rot; % [3D]
                         
                         % ray tracing (prism part) %
                         % pupil center: zero point
                         % update: wedge prism 20230725
                         % system top: thickness without wedge (lengthZRay2Default)
-                        final_goal = [final_lensEdge;Z_lensEdge];% lens edge position
+                        final_goal = [final_lensEdge;Z_pos_lensEdge];% lens edge position
                         if prismMode==1 %有 Prism Case
                             % point eye center == zero point
                             % vector OA: vector between pupil edge and prism top %
@@ -582,29 +743,39 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                                     wedgeHeight = getWedgeHeight(pointA,rotWedgePRA,prismSizeVer,wedgePBA);
                                     pointA(3) = systemThickness + wedgeHeight;
                                     vectorOA = pointA - pointEye;
-                                    % other update
-                                    UV_normal_prismTop = wedge_normal;
-                                    lengthZRay2 = lengthZRay2Default + wedgeHeight;
+                                    Z_dis_2 = wedgeHeight + 0 + prismSubstrate + 0.5 * prismStructure;
                                 elseif wedgePrism == 0
-                                    UV_normal_prismTop = UV_normal1;
-                                    lengthZRay2 = lengthZRay2Default;
                                     wedgeHeight = 0;
                                 end
-                                % update PBA from pointA 20231027
-                                if preciseGP == 1
-                                    PBA_desired = PBAUpdate(pointA,wedgeHeight,VE_EyePoint,PLA_array_fromPBA,PBA_array_forPLA,PRA);                      
-                                    UV_normal2 = [-sind(PBA_desired);0;-cosd(PBA_desired)]; % 出Prism斜面法向量
-                                    UV_normal2 = rotPRA * UV_normal2; % 旋轉法向量
-                                end
-                                % 20230725
-                                unitOA = vectorOA/norm(vectorOA);
-                                unitAB = sqrt(1-mu1^2*(1-(UV_normal_prismTop'*unitOA)^2))*UV_normal_prismTop+...
-                                        mu1*(unitOA-(UV_normal_prismTop'*unitOA)*UV_normal_prismTop); %snell's law 第一面
-                                pointB = pointA + unitAB*(-lengthZRay2)/unitAB(3); % lower prism
-                                pointSubstrateTop = pointA + unitAB*(-wedgeHeight)/unitAB(3); % substrate top @20230725
-                                unitBC=sqrt(1-mu2^2*(1-(UV_normal2'*unitAB)^2))*UV_normal2+...
-                                    mu2*(unitAB-(UV_normal2'*unitAB)*UV_normal2);  %snell's law 第二面
-                                pointC = pointB+unitBC*(-lengthZRay3)/unitBC(3); %lensedge
+                                % no precise GP
+%                                 if preciseGP == 1
+%                                     PBA_desired = PBAUpdate(pointA,wedgeHeight,VE_EyePoint,PLA_array_fromPBA,PBA_array_forPLA,PRA);                      
+%                                     UV_normal2 = [-sind(PBA_desired);0;-cosd(PBA_desired)]; % 出Prism斜面法向量
+%                                     UV_normal2 = rotPRA * UV_normal2; % 旋轉法向量
+%                                 end
+                                % CP 追跡
+                                % uv: unit vector
+                                % p: point (position)
+                                uv_at_eye_layer = vectorOA/norm(vectorOA);
+                                uv_at_GP_layer = sqrt(1-mu_1to2^2*(1-(normal_1to2'*uv_at_eye_layer)^2))*normal_1to2+...
+                                        mu_1to2*(uv_at_eye_layer-(normal_1to2'*uv_at_eye_layer)*normal_1to2);
+                                uv_at_air1_layer = sqrt(1-mu_2to3^2*(1-(normal_2to3'*uv_at_GP_layer)^2))*normal_2to3+...
+                                        mu_2to3*(uv_at_GP_layer-(normal_2to3'*uv_at_GP_layer)*normal_2to3);
+                                uv_at_cp_layer = sqrt(1-mu_3to4^2*(1-(normal_3to4'*uv_at_air1_layer)^2))*normal_3to4+...
+                                        mu_3to4*(uv_at_air1_layer-(normal_3to4'*uv_at_air1_layer)*normal_3to4);
+                                uv_at_air2_layer = sqrt(1-mu_4to5^2*(1-(normal_4to5'*uv_at_cp_layer)^2))*normal_4to5+...
+                                        mu_4to5*(uv_at_cp_layer-(normal_4to5'*uv_at_cp_layer)*normal_4to5); 
+                                
+                                pointC = pointA + ...
+                                            uv_at_GP_layer*(-Z_dis_2)/uv_at_GP_layer(3) + ...
+                                            uv_at_air1_layer*(-Z_dis_3)/uv_at_air1_layer(3) + ...
+                                            uv_at_cp_layer*(-Z_dis_4)/uv_at_cp_layer(3) + ...
+                                            uv_at_air2_layer*(-Z_dis_5)/uv_at_air2_layer(3);
+
+                                unitBC = uv_at_air2_layer;
+                                pointSubstrateTop = pointA + ...
+                                            uv_at_GP_layer*(-wedgeHeight)/uv_at_GP_layer(3);
+
                                 dev = pointC - final_goal;
                                 if sqrt(dev(1)^2+dev(2)^2)<1e-6 %誤差越小越好 其值待商榷!
                                     break
@@ -621,7 +792,7 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                         % get lens normal
                         if aspherical == 0
                             Lens_tempx=sqrt(lensRadius^2-(0.5*lensAperture)^2); % Lens邊緣到圓心的Z距離
-                            Lens_center=[lensCenter_xy;Z_lensEdge-Lens_tempx];  % 眼球往下Z為負 % 20220713
+                            Lens_center=[lensCenter_xy;Z_pos_lensEdge-Lens_tempx];  % 眼球往下Z為負 % 20220713
                             Lens_normal_unit=(Lens_center-final_goal)/norm(Lens_center-final_goal); % <球面過邊緣點法向量>
                         elseif aspherical == 1 % aspherical critical section % 20230717
                             if whichPupilEdge == -1
@@ -646,14 +817,15 @@ RPpointSet_RE_wld = data.RPpointSet_RE_wld;                   farrestDistanceVer
                             mu_OCAtoDisplayCover*(unit_GlasstoOCA-(UV_normal1'*unit_GlasstoOCA)*UV_normal1); %snell's law <OCA到coverglass>
 
                         % 點整理 
-                        point_pupiledge=final_PupilEdge;point_systemTop=pointSubstrateTop; % 20230725 pointSubstrateTop
-                        point_lowerprism=pointB;point_lensedge=pointC;  
-                        point_onPanel= point_lensedge + ...
-                                    unit_airtoLens*(-(lensThickness-lensHeight))/unit_airtoLens(3) + ...
-                                    unit_LenstoOCA*(-OCAThickness)/unit_LenstoOCA(3)+ ...
-                                    unit_OCAtoGlass*(-glassThickness)/unit_OCAtoGlass(3) + ...
-                                    unit_GlasstoOCA*(-OCAThickness)/unit_GlasstoOCA(3) + ...
-                                    unit_OCAtoCoverglass*(-displayCoverThickness)/unit_OCAtoCoverglass(3);    
+                        point_pupiledge = final_PupilEdge;
+                        point_systemTop = pointSubstrateTop;
+                        point_lensedge = pointC;  
+                        point_onPanel = point_lensedge + ...
+                                        unit_airtoLens*(-(lensThickness-lensHeight))/unit_airtoLens(3) + ...
+                                        unit_LenstoOCA*(-OCAThickness)/unit_LenstoOCA(3)+ ...
+                                        unit_OCAtoGlass*(-glassThickness)/unit_OCAtoGlass(3) + ...
+                                        unit_GlasstoOCA*(-OCAThickness)/unit_GlasstoOCA(3) + ...
+                                        unit_OCAtoCoverglass*(-displayCoverThickness)/unit_OCAtoCoverglass(3);    
                         t=whichPupilEdge*0.5+1.5;t=uint8(t);
                         outputO(:,t)=point_pupiledge;
                         outputA(:,t)=point_systemTop;
