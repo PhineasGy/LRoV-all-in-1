@@ -1,0 +1,61 @@
+%% 使用者輸入 %%
+
+
+% 說明: 開頭"%"，不會影響輸入
+% 說明: 可自行加入要自動輸入的參數
+% 說明: 若該 Code 不支援該參數，會跳出 Error
+% --------------------------------------------------------- %
+%% Other %%
+% --------------------------------------------------------- %
+
+% 自行發揮區
+% A = 
+% B = 1;
+% writeII = 1;
+panelPixelNumVer = 3840;
+
+% --------------------------------------------------------- %
+%% Extra System Module Description %%
+% --------------------------------------------------------- %
+% wedge prism
+wedgePrism = 0;                             
+    prismSizeHor = 225.24;                  % actual length (no use) (mm)
+    prismSizeVer = 343.76;                  % actual length (mm)
+    wedgePBA = -5;
+    wedgePRA = 0;                           % usually 0
+
+% --------------------------------------------------------- %	
+%% System Module Description %%
+% --------------------------------------------------------- %
+% upper part (prism)
+prismMode = 1;                              % 0/1.
+GPMode = 1;                                 % 0/1: gradient prism
+PRA = -10;                                  % prism array rotation angle (+:counterclockwise) (degree)
+prism_n = 1.49;                             % prism refractive index (default white)
+prismSubstrate = 1.934;                     % prism substrate layer thickness (mm)
+prismStructure = 0.066;                     % prism structure layer thickness (mm)
+PBA = [41.5];                               % prism bottom angle: autoGP/noGP [N]; manualGP [N1,N2,...](N1>N2...) (degree)
+WDForAutoGP = 550;                          % WD setup for AutoGP case
+prismLensGap = 0.15;                        % air gap between "prism structure mid" and "lens top" (mm)
+
+% lower part (others)
+LRA = 12;                                   % LL array rotation angle (+:counterclockwise) (-90 < LRA < 90) (degree)
+lens_n = 1.49;                              % LL refractive index
+lensRadius = 1.674;                         % LL radius (mm)
+lensThicknessEI0 = 1.524;                   % LL total layer thickness (mm) (keep LensSubstrate method) 20230321
+lensPitch = 1.001;                          % LL pitch (mm)
+glass_n = 1.52;                             % glass refractive index
+glassThickness = 3.760;                     % glass thickness (mm)
+displayCover_n = 1.51;                      % display cover refractive index
+displayCoverThickness = 0.264;              % display cover thickness (mm)
+OCA_n = 1.49;                               % OCA refractive index
+OCAThickness = 0;                           % OCA thickness (mm)
+
+% Panel (註: 沒有 PPI 設定)
+panelSizeHor = 165.24;                      % panel horizontal size (mm)
+panelSizeVer = 293.76;                      % panel vertical size (mm)
+
+% LL Size
+isLLSameAsPanel = 0;                        % 0/1.
+lensArraySizeHor = 186.5;                   % if isLLSameAsPanel == 0 (mm)
+lensArraySizeVer = 311.7;                   % if isLLSameAsPanel == 0 (mm)
