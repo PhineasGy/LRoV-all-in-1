@@ -9,6 +9,7 @@ function data = func_tracing(whichCode,data,varargin)
     % loop order: eye --> lens --> segment --> AUF --> pupiledge
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % note: cp beta verison (cp 相關參數直接在 func_tracing 操作) 
+    % cp - 4 region version
     % --- processing ---
 
     %% structure assignment
