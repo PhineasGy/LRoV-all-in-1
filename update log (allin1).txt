@@ -2,100 +2,33 @@ LRoV All in 1 beta update log (V1.36)
 ------------------------------------
 (git test)
 
-V1.4
-[since 20231?]
-
-tracing update:
-	
-	TDL: 角度正負統一
-		1. 光線往直角面導光
-		
-	
-	1. 每層結構輸入:
-		1. 代號: "Cube", "Lens", "Prism"
-		2. 副代號: "", "struct_up", "struct_down"
-		
-	2. 追跡將分為兩部分:
-		限制: Lens 數量必須為 1
-		1. Lens Edge 以上，要做 IPA 追跡
-			IPA:
-				1. 定義 pupil edge and lens edge (正常情況下 左追左 右追右)
-				2. 正常追跡 眼睛 with IPA loop 找到入射 lens edge 的方向向量
-				
-				正常追跡: 連環追跡 (without lens)
-				
-		2. Lens Edge 以下 (包含 Lens)，正常追跡
-				
-				正常追跡: 連環追跡 (with lens)
-				
-		3. 追跡:
-		<input>
-			1. uv_in
-			2. p_junc
-			3. uv_junc_normal	
-			4. mu
-			5. z_trav
-	3. wedge prism 處理:
-		1. @ system top 且 結構朝上:
-			1. system thickness 不計算該層結構層 (VD 開始計算的地方)
-			2. 追跡時要考慮該層厚度 (隨位置改變)	
-		2. 其他情形:
-			1. system thickness 要計算該層總厚度
-			2. 追跡時要考慮該層不同厚度 (不是用虛擬面)
-			
-		3. 該點厚度: 面與線的交點
-		
-	4. 各層 Z 座標紀錄
-		Z = 0: 第一層 air gap layer
-		第一層底部為 Z = 0
-		
-		1. Cube: 	sub down, sub up
-		2. Lens: 	sub down, sub up, struct down, struct up
-		3. Prism:	sub down, sub up, struct down, struct up
-		
-	5. WP 追跡:
-		固定追跡三次?
-		1. IPA: top 延伸到 WP top
-		
-	6. GP_PBA:
-		PLAtoPBAFunction: 
-			% 從下方垂直入射 GP Layer 直到 system top 
-			(tracing smart)
-			
-		IPA loop 更新 PBA 應該為必要 (因為加越來越多層)
-		
-		first gp_normal:
-			1. LCenterXY --> 得 PBA --> 得 gp_normal
-		key point Z: GP 虛擬面 --> 得 XY --> 得 PBA --> 得 gp_normal
-		
-		update:
-			1. -90 < PRA < 90 檢查 (...)
-	7.
-	 固定為 soft LL? hard LL 好處: 可以看每一根 Lens 中心位置
-
-
 V1.3
 [since 20231115]
 ---
-	V1.30
-		1. auto-input: (done)
-	V1.31 (done)
-		1. BLP directly method:
-			0. II_BLP Code
-			1. keep BLP ROI method (BLP II removed)
-			2. record PS0 RP Center --> create BLP ROI 
-			3. large PS + BLP ROI --> BLP II
-		2. 參數整理 (mapping tracing)
-	V1.32
-		1. AUF tracing bug fix (done)
-		2. FindGRL bug fix (RatioMTemp) (done)
-		3. VZA manualGP bug fix (draw II removed) (done)
-		4. softLL tracing bug fix (panelSizeLL) (done)
-			1. (建議) verSizeForSeg == panelSizeVerLL
-			2. panelSize --> panelSizeLL (in softLL)
-		5. M00Curve: ExcludeRVJoint 為共享參數 (位置移動) (該VA並存時 M00 記為0)
-		6. BLP 面積分點 bug fix
-	V1.33
+    V1.37 (...)
+        1. update log 排版調整
+        2. equipped "cprintf.m" in tool.  
+
+    V1.36 (done)
+		1. II, VZA 影像顯示 TIR 與否 (done) 
+			1. 另外在 tracing 後再補上 (會在 custom line 後面)
+		2. Design: tracing struct bug fix
+		3. tool 資料夾新增版本 txt
+    V1.35 (done)
+		1. II-BLP update:
+			1. VZawPS for BLPROI, PS0 for M, large PS for content (追跡三次) (done)
+			(目前一張有 content II ~4-5-6分鐘)
+			2. bug fix: (only one EI) (done)
+				因為最邊緣兩條線會有誤: 1 EI is not available
+		2. 命名 bug fix (最後 custom line 前面沒有底線 if 跑多張圖 & 非第一張圖)  (done)
+			if ~isempty(customLine);customLine=strcat("_",customLine);end
+    V1.34
+		1. II-BLP update:
+			1. midline, LLline 均使用長度分點 (done)
+		2. VZA: 
+			1. fail to all 不會再跑一次 (done)
+		3. 所有 _user 檔案第一行顯示當前版本 (done)
+    V1.33
 		1. II-BLP update: 
 			1. 面積分點 --> 長度分點 (done)
 			2. debug mode off bug fix: (done)
@@ -105,27 +38,24 @@ V1.3
 				2. segmentMode 回到初始值設定
 		2. II update:
 			1. 取消 最後 data = II; (避免多圖 II Bug)
-	V1.34
-		1. II-BLP update:
-			1. midline, LLline 均使用長度分點 (done)
-		2. VZA: 
-			1. fail to all 不會再跑一次 (done)
-		3. 所有 _user 檔案第一行顯示當前版本 (done)
-	
-	V1.35 (done)
-		1. II-BLP update:
-			1. VZawPS for BLPROI, PS0 for M, large PS for content (追跡三次) (done)
-			(目前一張有 content II ~4-5-6分鐘)
-			2. bug fix: (only one EI) (done)
-				因為最邊緣兩條線會有誤: 1 EI is not available
-		2. 命名 bug fix (最後 custom line 前面沒有底線 if 跑多張圖 & 非第一張圖)  (done)
-			if ~isempty(customLine);customLine=strcat("_",customLine);end
-	V1.36 (done)
-		1. II, VZA 影像顯示 TIR 與否 (done) 
-			1. 另外在 tracing 後再補上 (會在 custom line 後面)
-		2. Design: tracing struct bug fix
-		3. tool 資料夾新增版本 txt
-			
+	V1.32
+		1. AUF tracing bug fix (done)
+		2. FindGRL bug fix (RatioMTemp) (done)
+		3. VZA manualGP bug fix (draw II removed) (done)
+		4. softLL tracing bug fix (panelSizeLL) (done)
+			1. (建議) verSizeForSeg == panelSizeVerLL
+			2. panelSize --> panelSizeLL (in softLL)
+		5. M00Curve: ExcludeRVJoint 為共享參數 (位置移動) (該VA並存時 M00 記為0)
+		6. BLP 面積分點 bug fix
+	V1.31 (done)
+		1. BLP directly method:
+			0. II_BLP Code
+			1. keep BLP ROI method (BLP II removed)
+			2. record PS0 RP Center --> create BLP ROI 
+			3. large PS + BLP ROI --> BLP II
+		2. 參數整理 (mapping tracing)
+    V1.30
+		1. auto-input: (done)		
 			
 ---------------
 V1.2

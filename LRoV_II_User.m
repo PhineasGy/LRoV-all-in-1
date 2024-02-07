@@ -1,5 +1,5 @@
 %% LRoV II all in one 
-% 當前版本: V1.36
+% 當前版本: V1.37
 clear
 clc
 close all
@@ -84,7 +84,7 @@ pupilSize_PLArray = [08];                   % pupil radius (mm)
 %% System Module %%
 % --------------------------------------------------------- %
 % upper part (prism)
-prismMode = 1;                              % 0/1.
+prismMode = 0;                              % 0/1.
 GPMode = 1;                                 % 0/1: gradient prism
 PRA = -10;                                  % prism array rotation angle (+:counterclockwise) (degree)
 prism_n = 1.49;                             % prism refractive index (default white)
