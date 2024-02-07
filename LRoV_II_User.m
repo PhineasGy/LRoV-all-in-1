@@ -84,7 +84,7 @@ pupilSize_PLArray = [08];                   % pupil radius (mm)
 %% System Module %%
 % --------------------------------------------------------- %
 % upper part (prism)
-prismMode = 0;                              % 0/1.
+prismMode = 1;                              % 0/1.
 GPMode = 1;                                 % 0/1: gradient prism
 PRA = -10;                                  % prism array rotation angle (+:counterclockwise) (degree)
 prism_n = 1.49;                             % prism refractive index (default white)
