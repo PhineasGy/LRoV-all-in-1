@@ -1,4 +1,4 @@
-LRoV All in 1 beta update log (V1.36)
+LRoV All in 1 beta update log (V1.37)
 ------------------------------------
 (git test)
 
@@ -9,7 +9,7 @@ V1.3
         1. update log 排版調整
         2. equipped "cprintf.m" in tool.  
 
-    V1.36 (done)
+    V1.36 (released)
 		1. II, VZA 影像顯示 TIR 與否 (done) 
 			1. 另外在 tracing 後再補上 (會在 custom line 後面)
 		2. Design: tracing struct bug fix
