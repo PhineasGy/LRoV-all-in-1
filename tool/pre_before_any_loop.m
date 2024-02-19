@@ -227,7 +227,8 @@ WDForAutoGP = data.WDForAutoGP;           eyeMode = data.eyeMode;
         % 20231030 update
         gp_PBA_array = nan; wp_PBA = nan; VE_originalPoint = nan; VE_EyePoint = nan;
         PLAtoPBAFunction = nan;
-
+        % 20240208 update
+        PLA_array_fromPBA_2 = nan; PBA_array_forPLA_2 = nan; I = nan;
         if GPMode == 1 && prismMode == 1
             if length(PBA) == 1 % autoGP
                 % step 1: relation between PBA and PLA (with respect ot prism_n) % 20230728
